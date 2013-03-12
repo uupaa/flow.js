@@ -1,0 +1,159 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
+<script src="flow.js"></script>
+<input type="button" onclick="test1()" value="test1()" />
+<input type="button" onclick="test2()" value="test2()" />
+<input type="button" onclick="test2()" value="test3()" />
+<input type="button" onclick="test2()" value="test4()" />
+<input type="button" onclick="test2()" value="test5()" />
+<input type="button" onclick="test2()" value="test6()" />
+
+<script>
+
+// 基本的な使い方の例。
+// 同期/非同期にかかわらず、pass を4回呼び出すとcallbackが呼ばれる
+// pass には引数を一つだけ渡す事ができる
+function test1() { // flow sync 4 events
+    var flow = new Flow(4, callback);
+
+    [1,2,3].forEach(function(value) {
+        flow.pass(value);
+    });
+    setTimeout(function() {
+        flow.pass(4); // fire callback
+    }, 1000);
+
+    function callback(err, args) { // err = null, args = [1,2,3,4]
+        if (err) {
+            switch (err.message) {
+            case "exit": console.log("exit", args.join()); break;
+            case "fail": console.log("fail", args.join()); break;
+            }
+        } else {
+            // err is null
+            console.log(args.join() === "1,2,3,4" ? "test ok" : "test ng"); // "1,2,3,4"
+        }
+    }
+}
+
+// 不定期に実行されるFlowで先に4回passが実行されたら成功、2回missが実行されたら失敗する
+function test2() { // flow async 4 events (missable 1)
+    var flow = new Flow(4, callback).missable(1);
+
+    setTimeout(function() { flow.pass(1); }, Math.random() * 1000);
+    setTimeout(function() { flow.pass(2); }, Math.random() * 1000);
+    setTimeout(function() { flow.pass(3); }, Math.random() * 1000);
+    setTimeout(function() { flow.miss(4); }, Math.random() * 1000);
+    setTimeout(function() { flow.miss(5); }, Math.random() * 1000);
+
+    function callback(err, args) { // random result
+        if (err) {
+            console.log("test ng", args.join()); // eg: "test ng 4,1,5"
+        } else {
+            console.log("test ok", args.join()); // eg: "test ok 2,3,1,4"
+        }
+    }
+}
+
+// Flow の第三引数(tag) を設定すると、
+// Flow.dump() で未完了のFlowを特定できる
+function test3() { // find blocker
+    function callback() {
+    }
+
+    var a = new Flow(10, callback, "test3.flow1");
+    var b = new Flow(10, callback, "test3.flow2");
+    var c = new Flow(10, callback, "test3.flow3");
+
+    for (var i = 0; i < 30; ++i) {
+        switch ((Math.random() * 3) | 0) {
+        case 0: a.pass(); break;
+        case 1: b.pass(); break;
+        case 2: c.pass(); break;
+        }
+    }
+
+    // -> Explore why the process is not completed.
+    console.log( Flow.dump() );
+//          {
+//              "test3.flow1": {
+//                  "_missable": 0,
+//                  "_events": 10,
+//                  "_pass": 9,
+//                  "_miss": 0,
+//                  "_state": "progress",
+//                  "_args": [],
+//                  "_tag": "test3.flow1"
+//              },
+//              "test3.flow2": null,
+//              "test3.flow3": {
+//                  "_missable": 0,
+//                  "_events": 10,
+//                  "_pass": 9,
+//                  "_miss": 0,
+//                  "_state": "progress",
+//                  "_args": [],
+//                  "_tag": "test3.flow3"
+//              }
+//          }
+}
+
+// pass() や miss() の第二引数にkeyを与えると、
+// args を args.key でアクセス可能になる
+function test4() { // args has keys
+    var flow = new Flow(3, function(err, args) {
+
+        console.log(args.join(",") === "value1,value2,value3" ? "test ok"
+                                                              : "test ng");
+
+        console.log(args.key1 === "value1" ? "test ok" : "test ng");
+        console.log(args.key3 === "value3" ? "test ok" : "test ng");
+    });
+
+    flow.pass("value1", "key1"); // { key1: value1 }
+    flow.pass("value2");
+    flow.pass("value3", "key3"); // { key1: value1 }
+}
+
+// Flow を待つ Flow を設定できる。多段で非同期処理を待機できる
+// master はアニメーション1(anim1)とアニメーション2(anim2)の両方の終了を待つ
+function test5() { // nested flow
+    var master = new Flow(2, function(err, args) {
+        if (err) {
+            console.log("test ng");
+        } else {
+            console.log("test ok"); // anim1 and anim2 finished
+        }
+    });
+
+    var anim1 = new Flow(2, master);
+    var anim2 = new Flow(2, master);
+
+    setTimeout(function() { anim1.pass(); }, Math.random() * 1000);
+    setTimeout(function() { anim1.pass(); }, Math.random() * 1000);
+    setTimeout(function() { anim2.pass(); }, Math.random() * 1000);
+    setTimeout(function() { anim2.pass(); }, Math.random() * 1000);
+}
+
+// test5 とほぼ同じだが必ず失敗する版
+function test6() { // nested flow
+    var master = new Flow(2, function(err, args) {
+        if (err) {
+            console.log("test ok");
+        } else {
+            console.log("test ng");
+        }
+    });
+
+    var anim1 = new Flow(2, master);
+    var anim2 = new Flow(2, master);
+
+    setTimeout(function() { anim1.pass(); }, Math.random() * 1000);
+    setTimeout(function() { anim1.pass(); }, Math.random() * 1000);
+    setTimeout(function() { anim2.pass(); }, Math.random() * 1000);
+    setTimeout(function() { anim2.miss(); }, Math.random() * 1000); // error
+}
+
+</script>
+</body></html>
+
+
