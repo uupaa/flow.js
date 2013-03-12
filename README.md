@@ -1,6 +1,7 @@
 flow.js
 =======
 
-asynchronous processes flow pattern
+A very simple way to wait for asynchronous processes.
 
-document: http://www.slideshare.net/uupaa/flowjs
+slide: http://www.slideshare.net/uupaa/flowjs
+

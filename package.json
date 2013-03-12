@@ -1,0 +1,14 @@
+{
+  "name"          : "Flow.js",
+  "version"       : "1.0.0",
+  "description"   : "A very simple way to wait for asynchronous processes",
+  "url"           : "https://github.com/uupaa/flow.js",
+  "keywords"      : ["async", "flow", "util"],
+  "author"        : "uupaa <uupaa.js@gmail.com>",
+  "license"       : "MIT",
+  "repository"    : { "type": "git", "url": "https://github.com/uupaa/flow.js.git" },
+  "contributors"  : [],
+  "dependencies"  : {},
+  "lib"           : ".",
+  "main"          : "flow.js"
+}
