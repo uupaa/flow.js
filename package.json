@@ -1,5 +1,5 @@
 {
-  "name"          : "Flow.js",
+  "name"          : "flow_js",
   "version"       : "1.0.0",
   "description"   : "A very simple way to wait for asynchronous processes",
   "url"           : "https://github.com/uupaa/flow.js",
