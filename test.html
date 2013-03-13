@@ -120,7 +120,12 @@ function test6() {
 // Junction args.
 function test7() {
     var junction = new Flow(2, function(err, args) {
-        if (args.sort() + "" === "1,2,3,4") {
+        // args = [flow1_args, flow2_args]
+        // args には flow1 と flow2 の引数が配列で格納されています
+        // valueをマージし、さらにソートするには以下のようにします
+        var values = Array.prototype.concat.apply([], args).sort();
+
+        if (values + "" === "1,2,3,4") {
             console.log("test ok");
         } else {
             console.log("test ng");

@@ -58,7 +58,12 @@ function pass(value, // @arg Mix(= undefined): args value
               key) { // @arg String(= ""): args key (optional)
                      // @ret this:
                      // @desc: pass a process
-    _increment(this, true, value, key);
+    ++this._.pass;
+    if (value !== void 0) {
+        this._.args.push(value);
+        key && (this._.args[key] = value);
+    }
+    _updateState(this);
     return this;
 }
 
@@ -66,21 +71,13 @@ function miss(value, // @arg Mix(= undefined): args value
               key) { // @arg String(= ""): args key (optional)
                      // @ret this:
                      // @desc: miss a process
-    _increment(this, false, value, key);
-    return this;
-}
-
-function _increment(that, pass, value, key) {
-    var db = that._;
-
-    pass ? ++db.pass
-         : ++db.miss;
-
+    ++this._.miss;
     if (value !== void 0) {
-        db.args.push(value);
-        key && (db.args[key] = value);
+        this._.args.push(value);
+        key && (this._.args[key] = value);
     }
-    _updateState(that);
+    _updateState(this);
+    return this;
 }
 
 function _updateState(that) { // @arg this:
@@ -95,16 +92,13 @@ function _updateState(that) { // @arg this:
     if (db.state === PROGRESS || !db.fn) { // progress or already finished
         return;
     }
-    fn = _detectCallbackFunction(db.fn, db.name);
-
-    if (fn.pass) { // junction
-        Array.prototype.push.apply(fn._.args, db.args); // merge args
-        db.state === "done" ? fn.pass()
-                            : fn.miss();
+    fn = _detectCallback(db.fn, db.name);
+    if (db.state === "done") {
+        fn.pass ? fn.pass(db.args)  // junction
+                : fn(null, db.args);
     } else {
-        db.state === "done" ? fn(null, db.args)
-                            : fn(new Error(db.state), // err.message: "fail" or "exit"
-                                 db.args);
+        fn.miss ? fn.miss(db.args)  // junction
+                : fn(new Error(db.state), db.args); // err.message: "fail" or "exit"
     }
     // --- finished ---
     db.fn = null;
@@ -112,9 +106,7 @@ function _updateState(that) { // @arg this:
     db.tag && (_progress[db.tag] = null);
 }
 
-function _detectCallbackFunction(fn,     // @arg Function/Flow: db.fn
-                                 name) { // @arg String: db.name
-                                         // @ret Function/Flow:
+function _detectCallback(fn, name) {
     return ( fn.pass || typeof fn === "function" ) // Flow or Function ?
            ? fn
            : fn[name || Object.keys(fn)[0]];       // FlowHash or FunctionHash
@@ -129,7 +121,6 @@ function exit() { // @desc: exit the Flow
 
 function fork(name) { // @arg String(= ""): fork name. "" is first function
                       // @ret this:
-                      // @desc: select the fork
     this._.name = name || "";
     return this;
 }
