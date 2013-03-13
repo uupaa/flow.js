@@ -3,14 +3,16 @@
 
 // --- header ----------------------------------------------
 function Flow(waits,    // @arg Integer: Number of wait for processes
-              callback, // @arg Flow: callback on completion of processes.
-                        //            callback(err:Error, args:MixArray)
-              tag) {    // @arg String(= ""): tag for Flow.dump()
+              callback, // @arg Function/FunctionHash/Flow/FlowHash: callback and forks
+                        //         callback on completion of processes.
+                        //         callback(err:Error, args:MixArray)
+              tag) {    // @arg String(= ""): tag name for Flow.dump()
                         // @desc: http://www.slideshare.net/uupaa/flowjs
     this._ = {
         missable: 0,        // Integer: Number of missable. default 0
         waits:  waits,
         state:  PROGRESS,   // String: "progress", "done", "fail", "exit"
+        name:   "",         // String: #fork(name)
         pass:   0,          // Integer: #pass() called
         miss:   0,          // Integer: #miss() called
         args:   [],         // MixArray: #pass(arg), #miss(arg) collections
@@ -22,13 +24,14 @@ function Flow(waits,    // @arg Integer: Number of wait for processes
 }
 
 Flow.name = "Flow";
-Flow.dump = dump;           // dump():void
+Flow.dump = dump;           // dump(clear:Boolean = false):void
 Flow.prototype = {
     constructor:Flow,
     missable:   missable,   // #missable(count:Integer):this
     extend:     extend,     // #extend(waits:Integer):this
     pass:       pass,       // #pass(value:Mix = undefined, key:String = ""):this
     miss:       miss,       // #miss(value:Mix = undefined, key:String = ""):this
+    fork:       fork,       // #fork(name:String = ""):this
     exit:       exit        // #exit():void
 };
 
@@ -82,7 +85,7 @@ function _increment(that, pass, value, key) {
 
 function _updateState(that) { // @arg this:
                               // @inner: judge state and callback function
-    var db = that._;
+    var db = that._, fn;
 
     if (db.state === PROGRESS) {
         db.state = db.miss > db.missable ? "fail"
@@ -92,18 +95,29 @@ function _updateState(that) { // @arg this:
     if (db.state === PROGRESS || !db.fn) { // progress or already finished
         return;
     }
-    if (db.state === "done") {
-        db.fn.pass ? db.fn.pass()
-                   : db.fn(null, db.args);
-    } else { // "fail" or "exit"
-        db.fn.miss ? db.fn.miss()
-                   : db.fn(new Error(db.state), // err.message: "fail" or "exit"
-                           db.args);
+    fn = _detectCallbackFunction(db.fn, db.name);
+
+    if (fn.pass) { // junction
+        Array.prototype.push.apply(fn._.args, db.args); // merge args
+        db.state === "done" ? fn.pass()
+                            : fn.miss();
+    } else {
+        db.state === "done" ? fn(null, db.args)
+                            : fn(new Error(db.state), // err.message: "fail" or "exit"
+                                 db.args);
     }
     // --- finished ---
     db.fn = null;
     db.args = []; // free
     db.tag && (_progress[db.tag] = null);
+}
+
+function _detectCallbackFunction(fn,     // @arg Function/Flow: db.fn
+                                 name) { // @arg String: db.name
+                                         // @ret Function/Flow:
+    return ( fn.pass || typeof fn === "function" ) // Flow or Function ?
+           ? fn
+           : fn[name || Object.keys(fn)[0]];       // FlowHash or FunctionHash
 }
 
 function exit() { // @desc: exit the Flow
@@ -113,13 +127,22 @@ function exit() { // @desc: exit the Flow
     _updateState(this);
 }
 
-function dump() { // @desc: dump progress instances
+function fork(name) { // @arg String(= ""): fork name. "" is first function
+                      // @ret this:
+                      // @desc: select the fork
+    this._.name = name || "";
+    return this;
+}
+
+function dump(clear) { // @arg Boolean(= false): detach all progress instances
+                       // @desc: dump progress instances
     var rv = [], key;
 
     for (key in _progress) {
         _progress[key] == null ? (delete _progress[key]) // [WEED]
                                : rv.push(JSON.stringify(_progress[key]._, "", 4));
     }
+    clear && (_progress = {});
     return rv + "";
 }
 
@@ -129,7 +152,7 @@ function dump() { // @desc: dump progress instances
 if (typeof module !== "undefined") { // is modular
     module.exports = { Flow: Flow };
 }
-global.Flow = Flow;
+global.Flow || (global.Flow = Flow);
 
 })(this.self || global);
 
