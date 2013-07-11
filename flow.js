@@ -1,5 +1,5 @@
-// flow.js: asynchronous processes flow pattern
-(function(global) {
+// Flow.js: asynchronous processes flow pattern
+this.Flow || (function(global) {
 
 // --- header ----------------------------------------------
 function Flow(waits,    // @arg Integer: Number of wait for processes
@@ -10,6 +10,7 @@ function Flow(waits,    // @arg Integer: Number of wait for processes
                         // @desc: http://www.slideshare.net/uupaa/flowjs
     this._ = {
         missable: 0,        // Integer: Number of missable. default 0
+        reason: "",         // String: exit or miss reason.
         waits:  waits,
         state:  PROGRESS,   // String: "progress", "done", "fail", "exit"
         name:   "",         // String: #fork(name)
@@ -30,9 +31,9 @@ Flow.prototype = {
     missable:   missable,   // #missable(count:Integer):this
     extend:     extend,     // #extend(waits:Integer):this
     pass:       pass,       // #pass(value:Mix = undefined, key:String = ""):this
-    miss:       miss,       // #miss(value:Mix = undefined, key:String = ""):this
+    miss:       miss,       // #miss(value:Mix = undefined, key:String = "", reason:String = "fail"):this
     fork:       fork,       // #fork(name:String = ""):this
-    exit:       exit        // #exit():void
+    exit:       exit        // #exit(reason:String = "exit"):void
 };
 
 // --- library scope vars ----------------------------------
@@ -67,14 +68,16 @@ function pass(value, // @arg Mix(= undefined): args value
     return this;
 }
 
-function miss(value, // @arg Mix(= undefined): args value
-              key) { // @arg String(= ""): args key (optional)
-                     // @ret this:
-                     // @desc: miss a process
+function miss(value,    // @arg Mix(= undefined): args value
+              key,      // @arg String(= ""): args key (optional)
+              reason) { // @arg String(= "fail"): miss reason
+                        // @ret this:
+                        // @desc: miss a process
     ++this._.miss;
     if (value !== void 0) {
         this._.args.push(value);
         key && (this._.args[key] = value);
+        this._.reason = reason || "fail"; // set reason
     }
     _updateState(this);
     return this;
@@ -98,7 +101,7 @@ function _updateState(that) { // @arg this:
                 : fn(null, db.args);
     } else {
         fn.miss ? fn.miss(db.args)  // junction
-                : fn(new Error(db.state), db.args); // err.message: "fail" or "exit"
+                : fn(new Error(db.reason), db.args); // err.message = reason
     }
     // --- finished ---
     db.fn = null;
@@ -112,9 +115,11 @@ function _detectCallback(fn, name) {
            : fn[name || Object.keys(fn)[0]];       // FlowHash or FunctionHash
 }
 
-function exit() { // @desc: exit the Flow
+function exit(reason) { // @arg String(= "exit"): exit reason
+                        // @desc: exit the Flow
     if (this._.state === PROGRESS) {
         this._.state = "exit";
+        this._.reason = reason || "exit";
     }
     _updateState(this);
 }
@@ -140,10 +145,10 @@ function dump(clear) { // @arg Boolean(= false): detach all progress instances
 // --- build -----------------------------------------------
 
 // --- export ----------------------------------------------
-if (typeof module !== "undefined") { // is modular
+if (typeof module !== "undefined") {
     module.exports = { Flow: Flow };
 }
-global.Flow || (global.Flow = Flow);
+global.Flow = Flow;
 
 })(this.self || global);
 
