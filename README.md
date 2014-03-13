@@ -1,7 +1,7 @@
 flow.js
 =======
 
-Sorry, flow.js was deprecated, recommend the Task.js to you.
+Sorry, flow.js was deprecated, recommend the [Task.js](https://github.com/uupaa/Task.js) to you.
 
 
 ----
