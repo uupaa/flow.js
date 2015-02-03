@@ -1,6 +1,6 @@
 {
   "name"          : "flow_js",
-  "version"       : "1.0.2",
+  "version"       : "1.0.3",
   "description"   : "A very simple way to wait for asynchronous processes",
   "url"           : "https://github.com/uupaa/flow.js",
   "keywords"      : ["async", "flow", "util"],
